@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Je déteste WordPress</title>
+    <meta
+      name="description"
+      content="Pourquoi WordPress est une dette technique : plugin hell, coupling PHP + frontend, architecture legacy, et comparaisons avec le headless et le statique."
+    />
+    <meta name="theme-color" content="#f6efe4" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./styles.css" />
+    <script defer src="./app.js"></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Aller au contenu</a>
+
+    <div class="site-shell">
+      <header class="topbar">
+        <a class="brand" href="#hero" aria-label="Retour en haut">
+          <span class="brand-mark" aria-hidden="true">WP?</span>
+          <span class="brand-copy">
+            <strong>Je déteste WordPress</strong>
+            <span>Mini-site éditorial anti dette technique</span>
+          </span>
+        </a>
+
+        <nav class="nav" aria-label="Navigation principale">
+          <a href="#diagnostic">Diagnostic</a>
+          <a href="#analyses">Analyses</a>
+          <a href="#comparaisons">Comparaisons</a>
+          <a href="#verdict">Verdict</a>
+        </nav>
+      </header>
+
+      <main id="main">
+        <section class="hero panel" id="hero">
+          <div class="hero-copy">
+            <p class="eyebrow">Angle éditorial assumé</p>
+            <h1>Pourquoi WordPress est une dette technique</h1>
+            <p class="lead">
+              WordPress reste populaire. C’est justement le problème: sa
+              longévité, son écosystème tentaculaire et son architecture issue
+              d’une autre époque en font souvent une machine à empiler des
+              compromis coûteux.
+            </p>
+
+            <div class="hero-actions">
+              <a class="button button-primary" href="#analyses">
+                Voir les analyses
+              </a>
+              <a class="button button-secondary" href="#comparaisons">
+                Comparer les options
+              </a>
+            </div>
+
+            <ul class="signal-list" aria-label="Constats clés">
+              <li>Plugin hell qui transforme chaque besoin en dépendance.</li>
+              <li>Couplage PHP + frontend qui ralentit toute évolution.</li>
+              <li>Architecture legacy qui force à contourner au lieu de concevoir.</li>
+            </ul>
+          </div>
+
+          <aside class="hero-visual" aria-label="Visualisation de la dette technique">
+            <div class="visual-card visual-card-large">
+              <svg viewBox="0 0 320 220" role="img" aria-label="Courbe de maintenance qui grimpe plus vite que la valeur livrée">
+                <defs>
+                  <linearGradient id="inkGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stop-color="#ff7a59" />
+                    <stop offset="100%" stop-color="#8a2f1d" />
+                  </linearGradient>
+                </defs>
+                <rect x="16" y="16" width="288" height="188" rx="18" fill="#161413" />
+                <path d="M48 164 H276" stroke="#7f776f" stroke-width="2" />
+                <path d="M48 164 V48" stroke="#7f776f" stroke-width="2" />
+                <path
+                  d="M60 152 C92 146, 102 132, 130 122 S180 100, 196 92 S238 60, 264 54"
+                  fill="none"
+                  stroke="url(#inkGradient)"
+                  stroke-width="8"
+                  stroke-linecap="round"
+                />
+                <path
+                  d="M60 150 C90 150, 122 146, 156 136 S210 130, 264 126"
+                  fill="none"
+                  stroke="#f6efe4"
+                  stroke-width="4"
+                  stroke-linecap="round"
+                  stroke-dasharray="10 10"
+                />
+                <circle cx="264" cy="54" r="8" fill="#ff7a59" />
+                <circle cx="264" cy="126" r="7" fill="#f6efe4" />
+                <text x="182" y="44" fill="#f6efe4" font-size="13" font-family="IBM Plex Mono, monospace">
+                  maintenance cost
+                </text>
+                <text x="170" y="146" fill="#f6efe4" font-size="13" font-family="IBM Plex Mono, monospace">
+                  delivered value
+                </text>
+              </svg>
+            </div>
+
+            <div class="visual-stack" aria-hidden="true">
+              <div class="visual-card">
+                <strong>43 plugins</strong>
+                <span>et personne ne sait lequel casse la prod</span>
+              </div>
+              <div class="visual-card">
+                <strong>Theme + builder + hooks</strong>
+                <span>surface d’intégration maximale, cohérence minimale</span>
+              </div>
+            </div>
+          </aside>
+        </section>
+
+        <section class="panel" id="diagnostic">
+          <div class="section-heading">
+            <p class="eyebrow">Diagnostic</p>
+            <h2>Le problème n’est pas qu’il soit vieux. Le problème est qu’il traîne son passé partout.</h2>
+          </div>
+
+          <div class="stat-grid">
+            <article class="stat-card">
+              <span class="stat-value">1</span>
+              <h3>Chaque besoin devient un plugin</h3>
+              <p>
+                SEO, cache, formulaires, sécurité, champs custom, page builder:
+                l’extension n’est plus l’exception, c’est le mode de
+                fonctionnement.
+              </p>
+            </article>
+
+            <article class="stat-card">
+              <span class="stat-value">2</span>
+              <h3>Le frontend subit le backend</h3>
+              <p>
+                Templates PHP, hooks, plugins injectés, HTML généré côté serveur
+                puis bricolé en JS: le découplage arrive tard, mal, et cher.
+              </p>
+            </article>
+
+            <article class="stat-card">
+              <span class="stat-value">3</span>
+              <h3>La maintenance devient politique</h3>
+              <p>
+                Toute mise à jour demande de négocier avec le thème, les
+                plugins, les overrides et les usages historiques du projet.
+              </p>
+            </article>
+          </div>
+        </section>
+
+        <section class="panel" id="analyses">
+          <div class="section-heading">
+            <p class="eyebrow">Analyses techniques</p>
+            <h2>Trois raisons structurelles qui transforment WordPress en dette technique.</h2>
+          </div>
+
+          <div class="analysis-list">
+            <article class="analysis-card reveal">
+              <div class="analysis-index">01</div>
+              <div>
+                <h3>Plugin hell</h3>
+                <p>
+                  Le modèle WordPress encourage l’assemblage de briques
+                  hétérogènes. En pratique, chaque plugin ajoute ses propres
+                  schémas de données, hooks, dépendances JS, conventions d’UI et
+                  surfaces de vulnérabilité.
+                </p>
+                <ul>
+                  <li>Multiplication des points de défaillance et des conflits de version.</li>
+                  <li>Qualité variable selon l’éditeur, sans gouvernance technique réelle.</li>
+                  <li>Budget de maintenance dilué dans la surveillance de l’écosystème.</li>
+                </ul>
+              </div>
+            </article>
+
+            <article class="analysis-card reveal">
+              <div class="analysis-index">02</div>
+              <div>
+                <h3>Coupling PHP + frontend</h3>
+                <p>
+                  L’expérience de développement mélange rendu serveur, logique
+                  métier, markup, plugins qui mutent le DOM, et scripts ajoutés
+                  en dernier recours. Le résultat: ni backend propre, ni frontend
+                  moderne.
+                </p>
+                <ul>
+                  <li>Responsabilités floues entre thème, plugin et intégration.</li>
+                  <li>Markup peu prévisible, donc design system fragile.</li>
+                  <li>Tests front cohérents difficiles quand la sortie HTML dépend d’un empilement de hooks.</li>
+                </ul>
+              </div>
+            </article>
+
+            <article class="analysis-card reveal">
+              <div class="analysis-index">03</div>
+              <div>
+                <h3>Legacy architecture</h3>
+                <p>
+                  WordPress optimise d’abord la compatibilité rétroactive. C’est
+                  rationnel pour sa base installée, mais mauvais pour un projet
+                  qui voudrait un socle technique clair, typé, modulaire et
+                  pilotable par tests.
+                </p>
+                <ul>
+                  <li>Beaucoup d’API historiques et de conventions implicites.</li>
+                  <li>Architecture difficile à faire évoluer sans couches de contournement.</li>
+                  <li>Dette fonctionnelle et technique qui se confondent vite.</li>
+                </ul>
+              </div>
+            </article>
+          </div>
+        </section>
+
+        <section class="panel compare-panel" id="comparaisons">
+          <div class="section-heading">
+            <p class="eyebrow">Comparaisons</p>
+            <h2>Quand on compare sérieusement, WordPress ressemble surtout à un héritage à porter.</h2>
+          </div>
+
+          <div class="toggle-group" role="tablist" aria-label="Choix de comparaison">
+            <button class="toggle is-active" type="button" role="tab" aria-selected="true" aria-controls="panel-headless" id="tab-headless" data-target="headless">
+              WordPress vs Headless
+            </button>
+            <button class="toggle" type="button" role="tab" aria-selected="false" aria-controls="panel-static" id="tab-static" data-target="static">
+              WordPress vs Static
+            </button>
+          </div>
+
+          <div class="comparison-panels">
+            <section class="comparison-panel is-active" id="panel-headless" role="tabpanel" aria-labelledby="tab-headless">
+              <div class="comparison-grid">
+                <article class="comparison-card bad">
+                  <h3>WordPress</h3>
+                  <ul>
+                    <li>Back-office pratique, mais couplé à un runtime PHP permanent.</li>
+                    <li>Montée en qualité frontend possible, rarement native.</li>
+                    <li>Les besoins spécifiques finissent souvent en plugins ou overrides.</li>
+                  </ul>
+                </article>
+                <article class="comparison-card good">
+                  <h3>Headless</h3>
+                  <ul>
+                    <li>Frontend libre: React, Vue, SSG, SSR, edge rendering selon le besoin.</li>
+                    <li>Séparation nette entre contenu, rendu et logique produit.</li>
+                    <li>Meilleure cohérence pour un design system et une chaîne CI/CD moderne.</li>
+                  </ul>
+                </article>
+              </div>
+              <p class="comparison-note">
+                Verdict: si l’équipe sait construire un frontend moderne, garder
+                WordPress au centre du système ressemble plus à une concession
+                historique qu’à un choix rationnel.
+              </p>
+            </section>
+
+            <section class="comparison-panel" id="panel-static" role="tabpanel" aria-labelledby="tab-static" hidden>
+              <div class="comparison-grid">
+                <article class="comparison-card bad">
+                  <h3>WordPress</h3>
+                  <ul>
+                    <li>Surface d’attaque plus large qu’un site généré statiquement.</li>
+                    <li>Perf dépendante du thème, du cache, des plugins et du serveur.</li>
+                    <li>Coûts cachés de maintenance plus élevés sur la durée.</li>
+                  </ul>
+                </article>
+                <article class="comparison-card good">
+                  <h3>Astro / Next / statique</h3>
+                  <ul>
+                    <li>Pages prévisibles, performances solides, hébergement simple.</li>
+                    <li>Moins de runtime, moins de points de panne, moins d’administration.</li>
+                    <li>Expérience dev plus saine pour du contenu éditorial ou marketing.</li>
+                  </ul>
+                </article>
+              </div>
+              <p class="comparison-note">
+                Verdict: pour un site vitrine ou éditorial, choisir WordPress au
+                lieu d’un stack statique moderne revient souvent à acheter de la
+                complexité dont personne n’a besoin.
+              </p>
+            </section>
+          </div>
+        </section>
+
+        <section class="panel" id="verdict">
+          <div class="section-heading">
+            <p class="eyebrow">Verdict</p>
+            <h2>WordPress sait encore publier. Il sait surtout faire payer cher la tranquillité technique.</h2>
+          </div>
+
+          <div class="verdict-layout">
+            <article class="verdict-card">
+              <h3>Le vrai coût</h3>
+              <p>
+                La facture ne se lit pas dans la mise en ligne initiale. Elle
+                apparaît dans les mises à jour sensibles, la dette CSS, les
+                régressions imprévues, les plugins orphelins, la perf à rattraper
+                et l’impossibilité de faire évoluer proprement le produit.
+              </p>
+            </article>
+
+            <article class="verdict-card accent">
+              <h3>La phrase à retenir</h3>
+              <p>
+                WordPress n’est pas seulement un CMS populaire. C’est souvent un
+                compromis ancien maquillé en standard.
+              </p>
+            </article>
+          </div>
+        </section>
+      </main>
+    </div>
+  </body>
+</html>
