@@ -8,7 +8,35 @@
       name="description"
       content="Pourquoi WordPress est une dette technique : plugin hell, coupling PHP + frontend, architecture legacy, et comparaisons avec le headless et le statique."
     />
+    <meta
+      name="keywords"
+      content="WordPress, dette technique, plugin hell, headless CMS, Astro, Next.js, architecture legacy, frontend moderne"
+    />
+    <meta name="robots" content="index,follow,max-image-preview:large,max-snippet:-1,max-video-preview:-1" />
+    <meta name="author" content="CarottePerdue" />
     <meta name="theme-color" content="#f6efe4" />
+    <link rel="canonical" href="https://wordpress-cest-nul.netlify.app/" />
+    <meta property="og:locale" content="fr_FR" />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Je déteste WordPress" />
+    <meta property="og:url" content="https://wordpress-cest-nul.netlify.app/" />
+    <meta property="og:site_name" content="Je déteste WordPress" />
+    <meta
+      property="og:description"
+      content="Pourquoi WordPress est une dette technique : plugin hell, coupling PHP + frontend, architecture legacy, et comparaisons avec le headless et le statique."
+    />
+    <meta property="og:image" content="/social-card.svg" />
+    <meta property="og:image:type" content="image/svg+xml" />
+    <meta property="og:image:alt" content="Visuel éditorial Je déteste WordPress" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Je déteste WordPress" />
+    <meta
+      name="twitter:description"
+      content="Une charge technique assumée contre WordPress, ses plugins, son couplage PHP/frontend et son architecture legacy."
+    />
+    <meta name="twitter:image" content="/social-card.svg" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="manifest" href="/site.webmanifest" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -16,6 +44,16 @@
       rel="stylesheet"
     />
     <link rel="stylesheet" href="./styles.css" />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "WebSite",
+        "name": "Je déteste WordPress",
+        "url": "https://wordpress-cest-nul.netlify.app/",
+        "inLanguage": "fr-FR",
+        "description": "Pourquoi WordPress est une dette technique : plugin hell, coupling PHP + frontend, architecture legacy, et comparaisons avec le headless et le statique."
+      }
+    </script>
     <script defer src="./app.js"></script>
   </head>
   <body>
@@ -315,6 +353,15 @@
           </div>
         </section>
       </main>
+
+      <footer class="site-footer">
+        <p>
+          Site statique éditorial sans tracking tiers. Déploiement possible sur Netlify en 1 clic.
+        </p>
+        <nav class="footer-nav" aria-label="Liens de pied de page">
+          <a href="/mentions-legales.html">Mentions légales</a>
+        </nav>
+      </footer>
     </div>
   </body>
 </html>

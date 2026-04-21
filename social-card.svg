@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" role="img" aria-label="Je déteste WordPress">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f9f2e7" />
+      <stop offset="55%" stop-color="#f6efe4" />
+      <stop offset="100%" stop-color="#efe3d1" />
+    </linearGradient>
+    <linearGradient id="accent" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ff7a59" />
+      <stop offset="100%" stop-color="#8a2f1d" />
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="630" fill="url(#bg)" />
+  <circle cx="1020" cy="130" r="170" fill="#9dc5b5" opacity="0.2" />
+  <circle cx="140" cy="80" r="110" fill="#c74d2f" opacity="0.12" />
+  <rect x="72" y="72" width="1056" height="486" rx="34" fill="#fffaf3" stroke="rgba(255,255,255,0.7)" />
+  <rect x="102" y="106" width="118" height="118" rx="28" fill="url(#accent)" />
+  <text x="161" y="176" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="38" fill="#fff7ef">WP?</text>
+  <text x="102" y="318" font-family="Archivo, Arial, sans-serif" font-size="84" font-weight="800" fill="#201a18">Je déteste</text>
+  <text x="102" y="402" font-family="Archivo, Arial, sans-serif" font-size="84" font-weight="800" fill="#201a18">WordPress</text>
+  <text x="102" y="476" font-family="IBM Plex Mono, monospace" font-size="28" fill="#5a514c">Pourquoi WordPress est une dette technique</text>
+  <path d="M720 438c88-18 152-60 210-178" fill="none" stroke="url(#accent)" stroke-width="18" stroke-linecap="round" />
+  <path d="M710 454c82 0 160-10 248-42" fill="none" stroke="#161413" stroke-opacity="0.2" stroke-width="10" stroke-linecap="round" stroke-dasharray="18 18" />
+</svg>
