@@ -1,0 +1,101 @@
+name: Release Tag
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+  pull-requests: read
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+
+      - name: Install GitHub CLI
+        run: |
+          sudo apt-get update
+          sudo apt-get install gh -y
+
+      - name: Get merged PR labels
+        id: pr
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          PR_NUMBER=$(gh pr list \
+            --state merged \
+            --base main \
+            --search "${{ github.sha }}" \
+            --json number \
+            --jq '.[0].number')
+
+          if [ -z "$PR_NUMBER" ]; then
+            echo "No merged PR found"
+            exit 1
+          fi
+
+          echo "PR_NUMBER=$PR_NUMBER"
+
+          LABELS=$(gh pr view "$PR_NUMBER" \
+            --json labels \
+            --jq '.labels[].name')
+
+          echo "labels<<EOF" >> "$GITHUB_OUTPUT"
+          echo "$LABELS" >> "$GITHUB_OUTPUT"
+          echo "EOF" >> "$GITHUB_OUTPUT"
+
+      - name: Calculate next version
+        id: version
+        env:
+          LABELS: ${{ steps.pr.outputs.labels }}
+        run: |
+          LAST_TAG=$(git tag --sort=-v:refname | head -n 1)
+
+          echo "Last tag: $LAST_TAG"
+
+          if [ -z "$LAST_TAG" ]; then
+            X=1
+            Y=0
+            Z=0
+          else
+            IFS='.' read -r X Y Z <<< "$LAST_TAG"
+          fi
+
+          echo "Labels:"
+          echo "$LABELS"
+
+          if echo "$LABELS" | grep -q "^breaking$"; then
+            X=$((X + 1))
+            Y=0
+            Z=0
+
+          elif echo "$LABELS" | grep -q "^feature$"; then
+            Y=$((Y + 1))
+            Z=0
+
+          else
+            Z=$((Z + 1))
+          fi
+
+          NEXT_TAG="${X}.${Y}.${Z}"
+
+          echo "NEXT_TAG=$NEXT_TAG" >> "$GITHUB_ENV"
+
+          echo "Next tag: $NEXT_TAG"
+
+      - name: Create git tag
+        run: |
+          git tag "$NEXT_TAG"
+          git push origin "$NEXT_TAG"
