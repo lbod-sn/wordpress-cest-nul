@@ -1,0 +1,46 @@
+name: Validate PR
+
+on:
+  pull_request:
+    branches:
+      - dev
+      - main
+    types:
+      - opened
+      - edited
+      - synchronize
+      - labeled
+      - unlabeled
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Validate branch naming
+        run: |
+          BRANCH="${{ github.head_ref }}"
+          BASE="${{ github.base_ref }}"
+
+          echo "Branch: $BRANCH"
+          echo "Base: $BASE"
+
+          if [[ "$BASE" == "dev" ]]; then
+            if [[ ! "$BRANCH" =~ ^(feature|fix|hotfix)/.+$ ]]; then
+              echo "Invalid branch naming."
+              echo "Expected: feature/*, fix/* or hotfix/*"
+              exit 1
+            fi
+          fi
+
+      - name: Validate labels
+        uses: mheap/github-action-required-labels@v5
+        with:
+          mode: exactly
+          count: 1
+          labels: |
+            feature
+            fix
+            hotfix
+            chore
+            breaking
