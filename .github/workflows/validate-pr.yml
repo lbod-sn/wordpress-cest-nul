@@ -19,6 +19,8 @@ concurrency:
 jobs:
   validate:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       # Convention de nommage :
       #   feature/* nouvelle fonctionnalite, fix/* correction, hotfix/* correction urgente.

@@ -12,7 +12,6 @@ on:
 
 permissions:
   contents: read
-  packages: write
 
 concurrency:
   group: cleanup-${{ github.event.pull_request.number }}
@@ -22,6 +21,9 @@ jobs:
   cleanup:
     name: Suppression des ressources de la PR
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write   # suppression des images de la PR
     steps:
       - name: Suppression des previsualisations Vercel de la branche
         env:

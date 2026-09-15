@@ -9,11 +9,13 @@ on:
     types: [opened]
 
 permissions:
-  pull-requests: write
+  contents: read
 
 jobs:
   label:
     runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write   # poser le label de release
     steps:
       - name: Apply label from branch name
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8

@@ -9,7 +9,9 @@
 # (tests, configuration de lint, .git) n'atteint le docroot.
 
 # ---------- build ----------
-FROM node:22-alpine AS build
+# Image figee par empreinte : un tag alpine bouge, une empreinte non. Dependabot
+# ouvre une PR quand l'empreinte du tag change, ce qui rend la mise a jour tracee.
+FROM node:22-alpine@sha256:c610fcdfb1d5b4740dd70c284ed3cb16bb857e0f7166196e36a5501df7a3aa32 AS build
 
 WORKDIR /src
 
@@ -21,7 +23,7 @@ COPY index.html 404.html mentions-legales.html styles.css app.js \
 RUN node scripts/build-dist.mjs /dist
 
 # ---------- runtime ----------
-FROM nginx:1.29-alpine
+FROM nginx:1.29-alpine@sha256:5616878291a2eed594aee8db4dade5878cf7edcb475e59193904b198d9b830de
 
 # Les CVE de cette image sont presque toutes des paquets de base d'Alpine, deja
 # corrigees en amont : l'image officielle est simplement plus ancienne que l'index
