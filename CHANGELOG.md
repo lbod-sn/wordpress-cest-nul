@@ -10,8 +10,8 @@ Extern. Aucune modification du contenu editorial du site.
 
 ### Ajoute
 
-- Chaine CI : `ci.yml` (lint, tests, assemblage verifie) et `codeql.yml` (analyse
-  statique de securite).
+- Chaine CI : `ci.yml` (lint, tests, assemblage verifie, audit `zizmor` des
+  workflows) et `codeql.yml` (analyse statique de securite).
 - Chaine conteneur : `Dockerfile` multi-stage (`node:22-alpine` -> `nginx:1.29-alpine`)
   et `docker-build.yml` (build, scan CVE Trivy bloquant, push GHCR avec attestations).
 - Deploiement de production `deploy-prod.yml` : declenche par un tag de version,
@@ -41,8 +41,12 @@ Extern. Aucune modification du contenu editorial du site.
   maintenant par variable d'environnement.
 - `netlify.toml` renvoyait la page d'accueil avec un code 200 pour toute URL
   inconnue. Le catch-all est retire au profit d'une vraie 404.
-- Toutes les actions GitHub sont epinglees par empreinte de commit, et les
-  jetons sont limites au minimum necessaire (`permissions` explicites).
+- Toutes les actions GitHub sont epinglees par empreinte de commit, les images
+  de base du Dockerfile par empreinte sha256, et les jetons sont limites au
+  minimum necessaire : aucune portee en ecriture en tete de workflow.
+- Audit `zizmor` des workflows : `persist-credentials: false` sur tous les
+  checkout sauf celui qui pousse le tag, plus aucune interpolation `${{ }}`
+  dans un `run`, et aucun cache consomme par le workflow de production.
 
 ### Modifie
 

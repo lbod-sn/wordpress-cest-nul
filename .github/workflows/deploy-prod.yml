@@ -49,6 +49,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           ref: ${{ env.VERSION }}
+          persist-credentials: false
 
       # Un echec de secret doit se lire en une ligne, pas dans une trace Vercel.
       - name: Verification des secrets requis
@@ -69,6 +70,9 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version-file: .nvmrc
+          # Ce workflow publie en production : il ne consomme aucun cache,
+          # qu'une branche quelconque pourrait avoir empoisonne.
+          package-manager-cache: false
 
       # Garde-fou : on ne promeut pas un site dont une page reference une ressource absente.
       - name: Assemblage et verification du site
@@ -96,6 +100,8 @@ jobs:
       contents: read
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
 
       # Verifie que le deploiement repond, sert les en-tetes attendus, et
       # n'expose aucun chemin interdit (.git/config en tete : c'est le premier
@@ -125,4 +131,4 @@ jobs:
         run: |
           set -euo pipefail
           npx --yes vercel@latest rollback --yes --token="$VERCEL_TOKEN"
-          echo "::warning::Production ramenee au deploiement precedent apres echec du smoke-test de ${{ env.VERSION }}"
+          echo "::warning::Production ramenee au deploiement precedent apres echec du smoke-test de $VERSION"

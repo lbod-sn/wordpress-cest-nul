@@ -31,7 +31,8 @@ jobs:
       pull-requests: read   # lire les labels de la PR mergee
       actions: write        # declencher les workflows en aval
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      # Seul workflow qui conserve les identifiants du runner : il pousse le tag.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7 # zizmor: ignore[artipacked]
         with:
           fetch-depth: 0  # l'historique complet des tags est necessaire
 
