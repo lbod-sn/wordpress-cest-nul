@@ -24,7 +24,6 @@ eslint.config.js
 # Documentation et manifestes de plateforme.
 docs
 *.md
-vercel.json
 netlify.toml
 
 # Manifestes de deploiement (aucun a ce jour, la regle previent la regression).

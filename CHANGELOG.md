@@ -14,17 +14,18 @@ Extern. Aucune modification du contenu editorial du site.
   workflows) et `codeql.yml` (analyse statique de securite).
 - Chaine conteneur : `Dockerfile` multi-stage (`node:22-alpine` -> `nginx:1.29-alpine`)
   et `docker-build.yml` (build, scan CVE Trivy bloquant, push GHCR avec attestations).
-- Deploiement de production `deploy-prod.yml` : declenche par un tag de version,
-  approbation manuelle via l'environnement GitHub `production`, smoke-test
-  d'exposition et retour arriere automatique en cas d'echec.
-- `cleanup-dev.yml` : suppression de la previsualisation Vercel et de l'image de
-  conteneur a la fermeture d'une PR.
+- Deploiement de production `deploy-prod.yml` : deploiement Netlify declenche par
+  un tag de version, approbation manuelle via l'environnement GitHub `production`,
+  smoke-test d'exposition, et republication du deploiement precedent en cas d'echec.
+- `cleanup-dev.yml` : suppression des previsualisations Netlify de la branche et
+  de l'image de conteneur a la fermeture d'une PR.
 - `auto-label.yml` : label de release deduit du prefixe de branche.
 - Outillage qualite : ESLint, Vitest et 31 tests (comportement du script de
   navigation, integrite des ressources referencees, en-tetes servis, image de secours).
-- `vercel.json` : en-tetes de securite (HSTS, CSP, X-Frame-Options, Referrer-Policy,
+- `netlify.toml` : en-tetes de securite (HSTS, CSP, X-Frame-Options, Referrer-Policy,
   Permissions-Policy) et blocage des chemins `.git`, `.env`, `.github`.
-- `docker/nginx.conf` : memes en-tetes et `server_tokens off` pour l'image de secours.
+- `docker/nginx.conf` : memes en-tetes et `server_tokens off` pour l'image de secours,
+  alignement verifie par les tests.
 - `scripts/build-dist.mjs` : assemblage du site publiable, en echec si une page
   reference une ressource absente du depot.
 - `scripts/ci-smoke-test.sh` : smoke-test d'exposition d'un deploiement.

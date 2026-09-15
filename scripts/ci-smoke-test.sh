@@ -41,7 +41,7 @@ else
 fi
 
 echo "-- chemins interdits"
-for chemin in /.git/config /.git/HEAD /.env /.github/workflows/deploy-prod.yml /package.json /vercel.json; do
+for chemin in /.git/config /.git/HEAD /.env /.github/workflows/deploy-prod.yml /package.json /netlify.toml; do
   c=$(code "$CIBLE$chemin")
   [ "$c" = "200" ] && echoue "$chemin est expose (200)" || passe "$chemin non expose ($c)"
 done

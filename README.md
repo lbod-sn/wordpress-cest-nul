@@ -35,25 +35,30 @@ docker/nginx.conf       configuration de l'image de secours
 scripts/build-dist.mjs  assemblage verifie du site publiable
 scripts/ci-smoke-test.sh smoke-test d'exposition d'un deploiement
 tests/                  suite Vitest
-vercel.json             en-tetes et regles de la cible de production
-netlify.toml            memes en-tetes pour la cible historique
+netlify.toml            en-tetes et regles de la cible de production
 ```
 
 ## Deploiement
 
-**Production : Vercel.** Le deploiement part d'un **tag de version**, jamais d'une
-branche : l'artefact promu est immuable et identifiable. Le workflow
+**Production : Netlify.** Le deploiement part d'un **tag de version**, jamais
+d'une branche : l'artefact promu est immuable et identifiable. Le workflow
 `deploy-prod.yml` passe par l'environnement GitHub `production`, qui porte
-l'approbation manuelle et les secrets (`VERCEL_TOKEN`, `VERCEL_ORG_ID`,
-`VERCEL_PROJECT_ID`).
+l'approbation manuelle et les secrets (`NETLIFY_AUTH_TOKEN`, `NETLIFY_SITE_ID`).
 
-Apres promotion, `scripts/ci-smoke-test.sh` verifie que le deploiement repond,
+> [!important]
+> La publication automatique de Netlify sur poussee de branche doit rester
+> limitee aux previsualisations. Si `main` publie toute seule, l'approbation
+> manuelle n'est plus tenue par rien et l'exigence SDU 3.3 tombe.
+
+Apres publication, `scripts/ci-smoke-test.sh` verifie que le deploiement repond,
 sert les en-tetes de securite attendus, et n'expose ni `.git` ni `.env`. En cas
-d'echec, le job `rollback` repromeut le deploiement precedent sans rebuild.
+d'echec, le job `rollback` republie le deploiement de production precedent, releve
+**avant** la publication, sans rebuild.
 
 **Secours : conteneur.** `Dockerfile` produit une image nginx qui sert le meme
 site avec les memes en-tetes, publiee sur `ghcr.io/lbod-sn/wordpress-cest-nul`.
-Elle existe pour que le site reste deployable ailleurs sans reecriture.
+Elle existe pour que le site reste deployable ailleurs sans reecriture. Les tests
+verifient que `netlify.toml` et `docker/nginx.conf` servent bien la meme chose.
 
 ```bash
 docker build -t wordpress-cest-nul:dev .
@@ -74,8 +79,8 @@ feature/* fix/* hotfix/*  --PR-->  dev  --PR-->  main  --tag vX.Y.Z-->  producti
 4. Au merge sur `main`, `release-tag.yml` cree le tag `vX.Y.Z` selon le label
    (`breaking` majeur, `feature` mineur, le reste patch) et declenche le
    deploiement de production.
-5. A la fermeture de la PR, `cleanup-dev.yml` supprime la previsualisation
-   Vercel et l'image de conteneur associees.
+5. A la fermeture de la PR, `cleanup-dev.yml` supprime les previsualisations
+   Netlify de la branche et l'image de conteneur associee.
 
 ## Workflows
 
@@ -87,17 +92,19 @@ feature/* fix/* hotfix/*  --PR-->  dev  --PR-->  main  --tag vX.Y.Z-->  producti
 | `validate-pr.yml` | PR | Nommage de branche et label de release |
 | `auto-label.yml` | Ouverture de PR | Label deduit du prefixe de branche |
 | `release-tag.yml` | Push `main` | Tag SemVer `vX.Y.Z` et declenchement aval |
-| `deploy-prod.yml` | Tag `v*`, manuel | Deploiement Vercel, smoke-test, rollback |
+| `deploy-prod.yml` | Tag `v*`, manuel | Deploiement Netlify, smoke-test, rollback |
 | `cleanup-dev.yml` | Fermeture de PR | Suppression previsualisation et image de PR |
 
 ## Securite
 
 Politique de signalement : [SECURITY.md](SECURITY.md).
 
-Les en-tetes de securite sont declares en trois endroits (`vercel.json`,
-`netlify.toml`, `docker/nginx.conf`) et verifies par les tests et par le
-smoke-test. Toute modification de l'un doit etre reportee dans les deux autres,
-sinon la conformite du site depend de l'hebergeur qui repond.
+Les en-tetes de securite sont declares a deux endroits (`netlify.toml` et
+`docker/nginx.conf`). Les tests verifient que les deux declarent la meme chose,
+y compris la politique de securite du contenu au caractere pres, et le
+smoke-test verifie qu'ils sont bien servis. Toute modification de l'un doit etre
+reportee dans l'autre, sinon la conformite du site depend de l'hebergeur qui
+repond.
 
 ## Licence
 

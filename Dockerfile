@@ -1,6 +1,6 @@
 # Image de secours du site statique.
 #
-# Vercel reste la plateforme de production : ce conteneur existe pour que le site
+# Netlify reste la plateforme de production : ce conteneur existe pour que le site
 # soit deployable ailleurs sans reecriture, et pour que la chaine
 # build + scan CVE + push du SDU 8.1 ait un artefact a produire.
 #

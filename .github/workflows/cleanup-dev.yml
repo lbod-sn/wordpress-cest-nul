@@ -2,9 +2,9 @@ name: Cleanup Dev
 
 # Nettoyage a la fermeture d'une PR (SDU : cleanup-dev).
 #
-# Une PR fermee laisse derriere elle deux choses qui restent accessibles et
-# continuent de coûter : le deploiement de previsualisation Vercel de sa branche,
-# et l'image de conteneur "pr-<n>" poussee dans GHCR. Les deux sont supprimes ici.
+# Une PR fermee laisse derriere elle deux choses qui restent accessibles : les
+# previsualisations Netlify de sa branche, et l'image de conteneur "pr-<n>"
+# poussee dans GHCR. Les deux sont supprimees ici.
 
 on:
   pull_request:
@@ -25,23 +25,36 @@ jobs:
       contents: read
       packages: write   # suppression des images de la PR
     steps:
-      - name: Suppression des previsualisations Vercel de la branche
+      # Les previsualisations Netlify restent servies apres la fermeture de la PR :
+      # une version non relue du site reste donc publiquement accessible.
+      - name: Suppression des previsualisations Netlify de la branche
         env:
           BRANCHE: ${{ github.event.pull_request.head.ref }}
-          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+          NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
         run: |
           set -uo pipefail
-          if [ -z "${VERCEL_TOKEN:-}" ]; then
-            echo "::notice::VERCEL_TOKEN absent : nettoyage des previsualisations ignore"
+          if [ -z "${NETLIFY_AUTH_TOKEN:-}" ]; then
+            echo "::notice::NETLIFY_AUTH_TOKEN absent : nettoyage des previsualisations ignore"
             exit 0
           fi
-          # "vercel remove" par branche : supprime toutes les previsualisations
-          # rattachees a la branche de la PR, quel que soit leur nombre.
-          npx --yes vercel@latest remove --yes --safe \
-            --token="$VERCEL_TOKEN" "$BRANCHE" || \
+
+          # On ne touche jamais au contexte "production" : seules les
+          # previsualisations et les deploiements de branche sont supprimes.
+          ids=$(npx --yes netlify-cli@27 api listSiteDeploys \
+                  --data "{\"site_id\":\"$NETLIFY_SITE_ID\"}" \
+                | jq -r --arg br "$BRANCHE" \
+                    '.[] | select(.branch == $br and .context != "production") | .id')
+
+          if [ -z "$ids" ]; then
             echo "::notice::Aucune previsualisation a supprimer pour $BRANCHE"
+            exit 0
+          fi
+
+          for id in $ids; do
+            npx --yes netlify-cli@27 api deleteDeploy --data "{\"deploy_id\":\"$id\"}" \
+              && echo "Previsualisation $id supprimee"
+          done
 
       - name: Suppression des images de conteneur de la PR
         env:

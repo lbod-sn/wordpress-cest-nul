@@ -9,7 +9,7 @@ donnee personnelle, n'expose aucune API et ne stocke aucun secret.
 Sont dans le perimetre :
 
 - le contenu servi publiquement (pages, ressources statiques) ;
-- la configuration d'exposition (`vercel.json`, `netlify.toml`, `docker/nginx.conf`) ;
+- la configuration d'exposition (`netlify.toml`, `docker/nginx.conf`) ;
 - les workflows GitHub Actions et l'image de conteneur publiee sur GHCR.
 
 ## Signaler une vulnerabilite
@@ -35,9 +35,9 @@ l'impact constate. Un rapport sans etapes de reproduction ne peut pas etre trait
 
 | Risque | Traitement | Ou |
 |---|---|---|
-| En-tetes de securite absents | HSTS, CSP, X-Frame-Options, Referrer-Policy, Permissions-Policy servis sur toutes les reponses | `vercel.json`, `netlify.toml`, `docker/nginx.conf` |
+| En-tetes de securite absents | HSTS, CSP, X-Frame-Options, Referrer-Policy, Permissions-Policy servis sur toutes les reponses | `netlify.toml`, `docker/nginx.conf` |
 | Exposition de `.git` ou `.env` | Chemins bloques au niveau de la plateforme et de nginx, verifies a chaque deploiement | `scripts/ci-smoke-test.sh` |
-| Banniere de version du serveur | `server_tokens off`, `X-Powered-By` vide | `docker/nginx.conf`, `vercel.json` |
+| Banniere de version du serveur | `server_tokens off`, `X-Powered-By` vide | `docker/nginx.conf`, `netlify.toml` |
 | CVE de l'image de base | Scan Trivy bloquant (CRITICAL, HIGH) a chaque build, y compris sur les PR | `.github/workflows/docker-build.yml` |
 | Dependances figees | Actions GitHub epinglees par empreinte, mises a jour par Dependabot | `.github/dependabot.yml` |
 | Injection dans les workflows | Aucune interpolation `${{ }}` directe dans un `run` : passage par variables d'environnement | `.github/workflows/` |

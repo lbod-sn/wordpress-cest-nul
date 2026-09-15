@@ -1,15 +1,19 @@
 name: Deploy Production
 
-# Deploiement de production sur Vercel.
+# Deploiement de production sur Netlify.
 #
 # Exigences SDU couvertes ici :
 #   3.1  le declenchement est explicite : un tag de version, jamais une poussee de branche
 #   3.3  l'environnement GitHub "production" porte la regle d'approbation manuelle
-#   8.3  un smoke-test d'exposition valide le deploiement avant promotion
+#   8.3  un smoke-test d'exposition valide le deploiement avant de le garder
 #   11.2 le retour arriere est documente et executable sans rebuild (voir job "rollback")
 #
-# Le deploiement se fait a partir du tag : l'artefact promu est immuable et
-# identifiable. Aucun deploiement de production ne part de "main" directement.
+# Le deploiement part du tag : l'artefact promu est immuable et identifiable.
+# Aucun deploiement de production ne part de "main" directement.
+#
+# Prerequis cote Netlify : desactiver la publication automatique sur poussee de
+# branche pour la production. Sinon "main" publierait sans approbation et
+# l'exigence 3.3 ne serait plus tenue par rien.
 
 on:
   push:
@@ -35,31 +39,32 @@ jobs:
   deploy:
     name: Promotion en production
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      deployments: write
     # L'approbation manuelle et les secrets vivent sur cet environnement.
     # Sans lui, ce workflow deploierait sans controle : il ne doit pas etre retire.
     environment:
       name: production
-      url: ${{ steps.vercel.outputs.url }}
+      url: ${{ steps.netlify.outputs.url }}
+    permissions:
+      contents: read
+      deployments: write
     outputs:
-      url: ${{ steps.vercel.outputs.url }}
+      url: ${{ steps.netlify.outputs.url }}
+      deploy_id: ${{ steps.netlify.outputs.deploy_id }}
+      precedent: ${{ steps.precedent.outputs.deploy_id }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           ref: ${{ env.VERSION }}
           persist-credentials: false
 
-      # Un echec de secret doit se lire en une ligne, pas dans une trace Vercel.
+      # Un echec de secret doit se lire en une ligne, pas dans une trace Netlify.
       - name: Verification des secrets requis
         env:
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+          NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
         run: |
           manquants=""
-          for nom in VERCEL_TOKEN VERCEL_ORG_ID VERCEL_PROJECT_ID; do
+          for nom in NETLIFY_AUTH_TOKEN NETLIFY_SITE_ID; do
             [ -z "${!nom}" ] && manquants="$manquants $nom"
           done
           if [ -n "$manquants" ]; then
@@ -78,18 +83,36 @@ jobs:
       - name: Assemblage et verification du site
         run: node scripts/build-dist.mjs dist
 
-      - name: Deploiement Vercel
-        id: vercel
+      # Releve du deploiement de production actuel AVANT de publier : c'est la
+      # cible du retour arriere. La relever apres serait trop tard.
+      - name: Releve du deploiement de production actuel
+        id: precedent
         env:
-          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+          NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
         run: |
           set -euo pipefail
-          npx --yes vercel@latest pull --yes --environment=production --token="$VERCEL_TOKEN"
-          npx --yes vercel@latest build --prod --token="$VERCEL_TOKEN"
-          url=$(npx --yes vercel@latest deploy --prebuilt --prod --token="$VERCEL_TOKEN")
+          id=$(npx --yes netlify-cli@27 api listSiteDeploys \
+                 --data "{\"site_id\":\"$NETLIFY_SITE_ID\",\"state\":\"ready\"}" \
+               | jq -r '[.[] | select(.context == "production")][0].id // empty')
+          echo "deploy_id=$id" >> "$GITHUB_OUTPUT"
+          echo "Deploiement de production actuel : ${id:-aucun}"
+
+      - name: Deploiement Netlify
+        id: netlify
+        env:
+          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+          NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
+        run: |
+          set -euo pipefail
+          npx --yes netlify-cli@27 deploy \
+            --prod --dir=dist --no-build \
+            --message "$VERSION" \
+            --json > deploy.json
+          url=$(jq -r '.deploy_url // .url' deploy.json)
+          id=$(jq -r '.deploy_id // .deployId // empty' deploy.json)
           echo "url=$url" >> "$GITHUB_OUTPUT"
+          echo "deploy_id=$id" >> "$GITHUB_OUTPUT"
           echo "Deploiement $VERSION -> $url"
 
   smoke-test:
@@ -114,21 +137,22 @@ jobs:
   rollback:
     name: Retour arriere
     needs: [deploy, smoke-test]
-    if: failure() && needs.deploy.result == 'success'
+    if: failure() && needs.deploy.result == 'success' && needs.deploy.outputs.precedent != ''
     runs-on: ubuntu-latest
     environment: production
     permissions:
       contents: read
     steps:
-      # Le smoke-test a echoue sur un deploiement deja promu : on repromeut
+      # Le smoke-test a echoue sur un deploiement deja publie : on republie
       # immediatement le deploiement de production precedent. Aucun rebuild,
       # donc aucun delai et aucun risque d'introduire une seconde difference.
-      - name: Repromotion du deploiement precedent
+      - name: Republication du deploiement precedent
         env:
-          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+          PRECEDENT: ${{ needs.deploy.outputs.precedent }}
+          VERSION: ${{ inputs.tag || github.ref_name }}
         run: |
           set -euo pipefail
-          npx --yes vercel@latest rollback --yes --token="$VERCEL_TOKEN"
-          echo "::warning::Production ramenee au deploiement precedent apres echec du smoke-test de $VERSION"
+          npx --yes netlify-cli@27 api restoreSiteDeploy \
+            --data "{\"deploy_id\":\"$PRECEDENT\"}"
+          echo "::warning::Production ramenee au deploiement $PRECEDENT apres echec du smoke-test de $VERSION"

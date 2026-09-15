@@ -2,7 +2,7 @@ name: Docker Build & Push
 
 # Chaine SDU 8.1 : build -> scan CVE -> push registre.
 #
-# L'image de secours n'est pas la cible de production (c'est Vercel), mais elle
+# L'image de secours n'est pas la cible de production (c'est Netlify), mais elle
 # est construite et scannee a chaque changement : une CVE critique doit se voir
 # avant le merge, pas le jour ou l'on doit quitter la plateforme.
 #
