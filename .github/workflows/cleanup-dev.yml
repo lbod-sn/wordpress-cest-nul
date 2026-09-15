@@ -1,0 +1,62 @@
+name: Cleanup Dev
+
+# Nettoyage a la fermeture d'une PR (SDU : cleanup-dev).
+#
+# Une PR fermee laisse derriere elle deux choses qui restent accessibles et
+# continuent de coûter : le deploiement de previsualisation Vercel de sa branche,
+# et l'image de conteneur "pr-<n>" poussee dans GHCR. Les deux sont supprimes ici.
+
+on:
+  pull_request:
+    types: [closed]
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: cleanup-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+jobs:
+  cleanup:
+    name: Suppression des ressources de la PR
+    runs-on: ubuntu-latest
+    steps:
+      - name: Suppression des previsualisations Vercel de la branche
+        env:
+          BRANCHE: ${{ github.event.pull_request.head.ref }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          set -uo pipefail
+          if [ -z "${VERCEL_TOKEN:-}" ]; then
+            echo "::notice::VERCEL_TOKEN absent : nettoyage des previsualisations ignore"
+            exit 0
+          fi
+          # "vercel remove" par branche : supprime toutes les previsualisations
+          # rattachees a la branche de la PR, quel que soit leur nombre.
+          npx --yes vercel@latest remove --yes --safe \
+            --token="$VERCEL_TOKEN" "$BRANCHE" || \
+            echo "::notice::Aucune previsualisation a supprimer pour $BRANCHE"
+
+      - name: Suppression des images de conteneur de la PR
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR: ${{ github.event.pull_request.number }}
+          PAQUET: ${{ github.event.repository.name }}
+        run: |
+          set -uo pipefail
+          versions=$(gh api "/user/packages/container/$PAQUET/versions" --paginate \
+            --jq ".[] | select(.metadata.container.tags[]? | startswith(\"pr-$PR-\")) | .id" 2>/dev/null || true)
+
+          if [ -z "$versions" ]; then
+            echo "::notice::Aucune image pr-$PR- a supprimer"
+            exit 0
+          fi
+
+          for id in $versions; do
+            gh api --method DELETE "/user/packages/container/$PAQUET/versions/$id" \
+              && echo "Image $id supprimee"
+          done

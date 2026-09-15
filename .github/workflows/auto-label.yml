@@ -1,0 +1,43 @@
+name: Auto Label PR
+
+# Pose le label de release des l'ouverture d'une PR, deduit du prefixe de branche.
+# Les labels "chore" et "breaking" ne se deduisent pas d'un nom de branche : ils
+# demandent un jugement humain et restent a poser a la main.
+
+on:
+  pull_request:
+    types: [opened]
+
+permissions:
+  pull-requests: write
+
+jobs:
+  label:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Apply label from branch name
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        with:
+          script: |
+            const branch = context.payload.pull_request.head.ref;
+
+            const map = {
+              'feature/': 'feature',
+              'fix/':     'fix',
+              'hotfix/':  'hotfix',
+            };
+
+            const label = Object.entries(map).find(([prefix]) => branch.startsWith(prefix))?.[1];
+
+            if (label) {
+              await github.rest.issues.addLabels({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.payload.pull_request.number,
+                labels: [label],
+              });
+              console.log(`Label "${label}" applique depuis la branche "${branch}"`);
+            } else {
+              // validate-pr.yml bloquera le merge tant qu'aucun label n'est pose.
+              console.log(`Aucun label deductible pour "${branch}" — poser "chore" ou "breaking" a la main`);
+            }

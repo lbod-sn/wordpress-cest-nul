@@ -1,0 +1,7 @@
+# CVE arbitrees, avec leur motif et leur date de reexamen.
+# Toute ligne ajoutee ici doit porter un motif : une exception sans justification
+# est une CVE oubliee, pas une CVE traitee.
+#
+# Format : CVE-XXXX-YYYY  # motif — reexamen AAAA-MM-JJ
+#
+# (aucune exception a ce jour)

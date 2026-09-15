@@ -1,0 +1,36 @@
+name: CodeQL
+
+# Analyse statique de securite du JavaScript du depot.
+# Declaree au titre du controle SAST d'OpenSSF Scorecard, et utile en propre :
+# le site sert du JS directement au navigateur, sans etape de compilation qui
+# aurait pu reveler une erreur.
+
+on:
+  pull_request:
+    branches: [dev, main]
+  push:
+    branches: [main]
+  schedule:
+    # Lundi 6h05 UTC : les regles CodeQL evoluent, le code non modifie aussi.
+    - cron: '5 6 * * 1'
+
+permissions:
+  contents: read
+
+jobs:
+  analyze:
+    name: Analyse JavaScript
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+      actions: read
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - uses: github/codeql-action/init@b96794f015dfd88f77b49b1c93e0fa7110f94c63 # v4
+        with:
+          languages: javascript-typescript
+          queries: security-and-quality
+
+      - uses: github/codeql-action/analyze@b96794f015dfd88f77b49b1c93e0fa7110f94c63 # v4

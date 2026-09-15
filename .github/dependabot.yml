@@ -1,0 +1,31 @@
+version: 2
+
+updates:
+  # Dependances de developpement (lint, tests) : regroupees pour eviter une PR par paquet.
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    labels: [chore]
+    groups:
+      outillage-dev:
+        patterns: ["*"]
+        update-types: [minor, patch]
+
+  # Actions GitHub : epinglees par empreinte, donc seul Dependabot peut les faire bouger.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    labels: [chore]
+
+  # Images de base du Dockerfile : c'est la source principale de CVE sur ce projet.
+  - package-ecosystem: docker
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    labels: [chore]
