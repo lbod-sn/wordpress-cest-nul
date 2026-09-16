@@ -23,7 +23,7 @@ COPY index.html 404.html mentions-legales.html styles.css app.js \
 RUN node scripts/build-dist.mjs /dist
 
 # ---------- runtime ----------
-FROM nginx:1.29-alpine@sha256:5616878291a2eed594aee8db4dade5878cf7edcb475e59193904b198d9b830de
+FROM nginx:1.31-alpine@sha256:17ad11d84df6c69e327c0894125f712ec1f1de627b5e5ed7e12ca2ed8cd5daf8
 
 # Les CVE de cette image sont presque toutes des paquets de base d'Alpine, deja
 # corrigees en amont : l'image officielle est simplement plus ancienne que l'index
