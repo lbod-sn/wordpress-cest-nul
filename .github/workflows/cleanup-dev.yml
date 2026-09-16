@@ -1,0 +1,66 @@
+name: Cleanup Dev
+
+# Nettoyage a la fermeture d'une PR (SDU : cleanup-dev).
+#
+# Une PR fermee laisse derriere elle ses previsualisations Netlify : une version
+# non relue du site reste publiquement servie tant qu'on ne les supprime pas.
+#
+# Il n'y a rien a nettoyer cote registre : docker-build.yml ne pousse jamais
+# d'image depuis une PR (etape "Push registre", condition
+# github.event_name != 'pull_request'). L'etape de suppression des images "pr-<n>"
+# qui figurait ici nettoyait donc quelque chose qui n'existe jamais, et echouait
+# en le faisant : GITHUB_TOKEN n'a pas acces a /user/packages (404), la reponse
+# d'erreur atterrissait dans la liste d'identifiants, et le DELETE partait sur une
+# URL construite a partir du texte de l'erreur.
+#
+# La retention des images "dev-<sha>", elle, reste un sujet ouvert : elles
+# s'accumulent sans limite. C'est un nettoyage periodique, pas un nettoyage de PR.
+
+on:
+  pull_request:
+    types: [closed]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cleanup-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+jobs:
+  cleanup:
+    name: Suppression des ressources de la PR
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      # Les previsualisations Netlify restent servies apres la fermeture de la PR :
+      # une version non relue du site reste donc publiquement accessible.
+      - name: Suppression des previsualisations Netlify de la branche
+        env:
+          BRANCHE: ${{ github.event.pull_request.head.ref }}
+          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+          NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
+        run: |
+          set -uo pipefail
+          if [ -z "${NETLIFY_AUTH_TOKEN:-}" ]; then
+            echo "::notice::NETLIFY_AUTH_TOKEN absent : nettoyage des previsualisations ignore"
+            exit 0
+          fi
+
+          # On ne touche jamais au contexte "production" : seules les
+          # previsualisations et les deploiements de branche sont supprimes.
+          ids=$(npx --yes netlify-cli@27 api listSiteDeploys \
+                  --data "{\"site_id\":\"$NETLIFY_SITE_ID\"}" \
+                | jq -r --arg br "$BRANCHE" \
+                    '.[] | select(.branch == $br and .context != "production") | .id')
+
+          if [ -z "$ids" ]; then
+            echo "::notice::Aucune previsualisation a supprimer pour $BRANCHE"
+            exit 0
+          fi
+
+          for id in $ids; do
+            npx --yes netlify-cli@27 api deleteDeploy --data "{\"deploy_id\":\"$id\"}" \
+              && echo "Previsualisation $id supprimee"
+          done

@@ -1,0 +1,158 @@
+name: Deploy Production
+
+# Deploiement de production sur Netlify.
+#
+# Exigences SDU couvertes ici :
+#   3.1  le declenchement est explicite : un tag de version, jamais une poussee de branche
+#   3.3  l'environnement GitHub "production" porte la regle d'approbation manuelle
+#   8.3  un smoke-test d'exposition valide le deploiement avant de le garder
+#   11.2 le retour arriere est documente et executable sans rebuild (voir job "rollback")
+#
+# Le deploiement part du tag : l'artefact promu est immuable et identifiable.
+# Aucun deploiement de production ne part de "main" directement.
+#
+# Prerequis cote Netlify : desactiver la publication automatique sur poussee de
+# branche pour la production. Sinon "main" publierait sans approbation et
+# l'exigence 3.3 ne serait plus tenue par rien.
+
+on:
+  push:
+    tags: ['v*.*.*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag de version a deployer (ex : v1.2.0)"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-prod
+  cancel-in-progress: false
+
+env:
+  VERSION: ${{ inputs.tag || github.ref_name }}
+
+jobs:
+  deploy:
+    name: Promotion en production
+    runs-on: ubuntu-latest
+    # L'approbation manuelle et les secrets vivent sur cet environnement.
+    # Sans lui, ce workflow deploierait sans controle : il ne doit pas etre retire.
+    environment:
+      name: production
+      url: ${{ steps.netlify.outputs.url }}
+    permissions:
+      contents: read
+      deployments: write
+    outputs:
+      url: ${{ steps.netlify.outputs.url }}
+      deploy_id: ${{ steps.netlify.outputs.deploy_id }}
+      precedent: ${{ steps.precedent.outputs.deploy_id }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ env.VERSION }}
+          persist-credentials: false
+
+      # Un echec de secret doit se lire en une ligne, pas dans une trace Netlify.
+      - name: Verification des secrets requis
+        env:
+          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+          NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
+        run: |
+          manquants=""
+          for nom in NETLIFY_AUTH_TOKEN NETLIFY_SITE_ID; do
+            [ -z "${!nom}" ] && manquants="$manquants $nom"
+          done
+          if [ -n "$manquants" ]; then
+            echo "::error::Secrets absents de l'environnement production :$manquants"
+            exit 1
+          fi
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version-file: .nvmrc
+          # Ce workflow publie en production : il ne consomme aucun cache,
+          # qu'une branche quelconque pourrait avoir empoisonne.
+          package-manager-cache: false
+
+      # Garde-fou : on ne promeut pas un site dont une page reference une ressource absente.
+      - name: Assemblage et verification du site
+        run: node scripts/build-dist.mjs dist
+
+      # Releve du deploiement de production actuel AVANT de publier : c'est la
+      # cible du retour arriere. La relever apres serait trop tard.
+      - name: Releve du deploiement de production actuel
+        id: precedent
+        env:
+          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+          NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
+        run: |
+          set -euo pipefail
+          id=$(npx --yes netlify-cli@27 api listSiteDeploys \
+                 --data "{\"site_id\":\"$NETLIFY_SITE_ID\",\"state\":\"ready\"}" \
+               | jq -r '[.[] | select(.context == "production")][0].id // empty')
+          echo "deploy_id=$id" >> "$GITHUB_OUTPUT"
+          echo "Deploiement de production actuel : ${id:-aucun}"
+
+      - name: Deploiement Netlify
+        id: netlify
+        env:
+          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+          NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
+        run: |
+          set -euo pipefail
+          npx --yes netlify-cli@27 deploy \
+            --prod --dir=dist --no-build \
+            --message "$VERSION" \
+            --json > deploy.json
+          url=$(jq -r '.deploy_url // .url' deploy.json)
+          id=$(jq -r '.deploy_id // .deployId // empty' deploy.json)
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+          echo "deploy_id=$id" >> "$GITHUB_OUTPUT"
+          echo "Deploiement $VERSION -> $url"
+
+  smoke-test:
+    name: Smoke-test d'exposition
+    needs: deploy
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      # Verifie que le deploiement repond, sert les en-tetes attendus, et
+      # n'expose aucun chemin interdit (.git/config en tete : c'est le premier
+      # chemin que teste un scanner sur un site statique).
+      - name: Smoke-test
+        env:
+          CIBLE: ${{ needs.deploy.outputs.url }}
+        run: ./scripts/ci-smoke-test.sh "$CIBLE"
+
+  rollback:
+    name: Retour arriere
+    needs: [deploy, smoke-test]
+    if: failure() && needs.deploy.result == 'success' && needs.deploy.outputs.precedent != ''
+    runs-on: ubuntu-latest
+    environment: production
+    permissions:
+      contents: read
+    steps:
+      # Le smoke-test a echoue sur un deploiement deja publie : on republie
+      # immediatement le deploiement de production precedent. Aucun rebuild,
+      # donc aucun delai et aucun risque d'introduire une seconde difference.
+      - name: Republication du deploiement precedent
+        env:
+          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+          PRECEDENT: ${{ needs.deploy.outputs.precedent }}
+          VERSION: ${{ inputs.tag || github.ref_name }}
+        run: |
+          set -euo pipefail
+          npx --yes netlify-cli@27 api restoreSiteDeploy \
+            --data "{\"deploy_id\":\"$PRECEDENT\"}"
+          echo "::warning::Production ramenee au deploiement $PRECEDENT apres echec du smoke-test de $VERSION"

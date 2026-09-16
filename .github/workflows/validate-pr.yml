@@ -1,5 +1,22 @@
 name: Validate PR
 
+# Verifie qu'une PR respecte les conventions du projet avant d'etre mergeable,
+# et pose le label de release qu'elle doit porter.
+#
+# Les deux tenaient dans deux workflows separes jusqu'au 2026-09-16. C'etait une
+# course : les deux ecoutaient le meme evenement et demarraient en meme temps.
+# Sur la PR d'integration #9, "validate" a lu les labels a 05:59:11 et
+# "auto-label" a pose le sien a 05:59:15. Quatre secondes de retard, et un echec.
+#
+# Relancer n'aurait rien change : un label pose avec le GITHUB_TOKEN par defaut
+# ne declenche pas de nouvel evenement "labeled" (garde-fou GitHub contre les
+# boucles, le meme qui empeche un tag pousse par un workflow de declencher les
+# workflows de tag). Le check restait donc rouge indefiniment.
+#
+# Les deux etapes vivent maintenant dans le meme job, dans cet ordre. L'action de
+# validation relit les labels par l'API, pas depuis la charge utile de
+# l'evenement : elle voit donc bien celui que l'etape precedente vient de poser.
+
 on:
   pull_request:
     branches:
@@ -7,34 +24,150 @@ on:
       - main
     types:
       - opened
+      - reopened
       - edited
       - synchronize
       - labeled
       - unlabeled
 
+permissions:
+  contents: read
+
+concurrency:
+  group: validate-pr-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
 jobs:
   validate:
     runs-on: ubuntu-latest
-
+    permissions:
+      contents: read         # lecture des commits de la PR
+      pull-requests: write   # poser le label de release
     steps:
+      # Pose le label AVANT de le valider. Voir l'entete pour la course que cet
+      # ordre supprime.
+      #
+      # Restreint aux evenements qui font apparaitre ou evoluer la PR : sur
+      # "unlabeled", un humain vient de retirer un label, sans doute pour en
+      # mettre un autre. Le reposer ici lui reprendrait sa decision des la
+      # seconde suivante.
+      - name: Apply release label
+        if: contains(fromJSON('["opened", "reopened", "synchronize"]'), github.event.action)
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        with:
+          script: |
+            const pr = context.payload.pull_request;
+            const { owner, repo } = context.repo;
+
+            // Du moins fort au plus fort. Un lot qui contient une PR "breaking"
+            // est un lot breaking, quel que soit le reste.
+            const PRECEDENCE = ['chore', 'fix', 'hotfix', 'feature', 'breaking'];
+            const RELEASE = new Set(PRECEDENCE);
+
+            // Le declencheur inclut "synchronize" pour rattraper une PR
+            // d'integration qui recoit des commits apres son ouverture. On ne
+            // repose donc jamais un label deja present : sinon on rajouterait
+            // celui qu'un humain vient de retirer.
+            const deja = pr.labels.map((l) => l.name).filter((n) => RELEASE.has(n));
+            if (deja.length > 0) {
+              console.log(`Label de release deja pose : ${deja.join(', ')} — rien a faire`);
+              return;
+            }
+
+            const PREFIXES = { 'feature/': 'feature', 'fix/': 'fix', 'hotfix/': 'hotfix' };
+            let label = Object.entries(PREFIXES)
+              .find(([prefixe]) => pr.head.ref.startsWith(prefixe))?.[1];
+            let origine = `prefixe de branche "${pr.head.ref}"`;
+
+            // PR d'integration : le nom de branche ne dit rien, mais les PR
+            // qu'elle embarque portent deja leur label. On prend le plus fort.
+            if (!label && pr.base.ref === 'main') {
+              const commits = await github.paginate(github.rest.pulls.listCommits, {
+                owner, repo, pull_number: pr.number, per_page: 100,
+              });
+
+              const vues = new Set();
+              const trouves = new Set();
+
+              for (const commit of commits) {
+                const { data: associees } =
+                  await github.rest.repos.listPullRequestsAssociatedWithCommit({
+                    owner, repo, commit_sha: commit.sha,
+                  });
+
+                for (const associee of associees) {
+                  if (associee.number === pr.number || vues.has(associee.number)) continue;
+                  vues.add(associee.number);
+                  for (const l of associee.labels) {
+                    if (RELEASE.has(l.name)) trouves.add(l.name);
+                  }
+                }
+              }
+
+              label = [...trouves].sort(
+                (a, b) => PRECEDENCE.indexOf(b) - PRECEDENCE.indexOf(a),
+              )[0];
+              origine = `${trouves.size} label(s) trouve(s) sur ${vues.size} PR embarquee(s) : ${[...trouves].join(', ') || 'aucun'}`;
+
+              // Aucune PR labellisee embarquee : des commits ont ete pousses
+              // directement sur dev. On ne bloque pas la release pour autant, on
+              // retombe sur le bump le plus conservateur en le disant fort.
+              if (!label) {
+                label = 'chore';
+                core.warning(
+                  `Aucun label de release trouve sur les ${vues.size} PR embarquees par #${pr.number}. ` +
+                  `Repli sur "chore" (bump patch). Si cette release contient une fonctionnalite ou ` +
+                  `une rupture, corriger le label a la main AVANT de merger.`,
+                );
+              }
+            }
+
+            if (!label) {
+              // PR de travail hors convention : validate-pr.yml bloquera le merge
+              // tant qu'un humain n'aura pas tranche entre "chore" et "breaking".
+              console.log(
+                `Aucun label deductible pour "${pr.head.ref}" -> "${pr.base.ref}" — ` +
+                `poser "chore" ou "breaking" a la main`,
+              );
+              return;
+            }
+
+            await github.rest.issues.addLabels({
+              owner, repo, issue_number: pr.number, labels: [label],
+            });
+            console.log(`Label "${label}" applique (${origine})`);
+
+      # Convention de nommage :
+      #   feature/* -> nouvelle fonctionnalite
+      #   fix/*     -> correction de bug
+      #   hotfix/*  -> correction urgente (souvent directement vers main)
+      # Cette regle ne s'applique qu'aux PR ciblant "dev". Les PR de dev -> main
+      # sont libres sur le nommage : c'est une PR d'integration.
+      #
+      # Le nom de branche passe par une variable d'environnement et non par une
+      # interpolation directe dans le script : une branche peut porter n'importe
+      # quel caractere, et ${{ }} dans un "run" est une injection de commande.
       - name: Validate branch naming
+        env:
+          BRANCH: ${{ github.head_ref }}
+          BASE: ${{ github.base_ref }}
         run: |
-          BRANCH="${{ github.head_ref }}"
-          BASE="${{ github.base_ref }}"
+          echo "Branche : $BRANCH"
+          echo "Cible   : $BASE"
 
-          echo "Branch: $BRANCH"
-          echo "Base: $BASE"
-
-          if [[ "$BASE" == "dev" ]]; then
-            if [[ ! "$BRANCH" =~ ^(feature|fix|hotfix)/.+$ ]]; then
-              echo "Invalid branch naming."
-              echo "Expected: feature/*, fix/* or hotfix/*"
-              exit 1
-            fi
+          if [ "$BASE" = "dev" ] && ! echo "$BRANCH" | grep -qE '^(feature|fix|hotfix)/.+$'; then
+            echo "::error::Nom de branche invalide : $BRANCH (attendu feature/*, fix/* ou hotfix/*)"
+            exit 1
           fi
 
+      # Exactement 1 label de release : il determine le chiffre incremente au merge.
+      #   feature  -> mineur   nouvelle fonctionnalite visible
+      #   fix      -> patch    correction de bug
+      #   hotfix   -> patch    correction urgente appliquee en production
+      #   chore    -> patch    maintenance sans impact utilisateur (dependances, CI)
+      #   breaking -> majeur   changement incompatible avec la version precedente
       - name: Validate labels
-        uses: mheap/github-action-required-labels@v5
+        uses: mheap/github-action-required-labels@23e10fde7e062233401931a0eece796cd9bf3177 # v5
         with:
           mode: exactly
           count: 1
