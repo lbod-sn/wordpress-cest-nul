@@ -1,7 +1,68 @@
+# Configuration de la cible de production : Netlify.
+#
+# Les memes en-tetes sont declares dans docker/nginx.conf pour l'image de secours.
+# Toute modification ici doit y etre reportee, sinon la conformite du site depend
+# de l'hebergeur qui repond, ce qui n'est pas une propriete du site.
+#
+# La production ne bouge que par le workflow deploy-prod.yml, declenche par un tag
+# de version. Le build automatique Netlify sur poussee de branche doit rester
+# limite aux previsualisations : sinon "main" publierait sans approbation, et
+# l'exigence SDU 3.3 ne serait plus tenue par rien.
+
 [build]
-  publish = "."
+  publish = "dist"
+  command = "node scripts/build-dist.mjs dist"
+
+[build.environment]
+  NODE_VERSION = "22"
+
+# Le catch-all "/* -> /index.html 200" a ete retire : il renvoyait la page
+# d'accueil avec un code 200 pour n'importe quelle URL inconnue. Un site
+# statique multi-pages n'est pas une SPA, il doit repondre 404.
 
 [[redirects]]
-  from = "/*"
-  to = "/index.html"
-  status = 200
+  from = "/.git/*"
+  to = "/404.html"
+  status = 404
+  force = true
+
+[[redirects]]
+  from = "/.env"
+  to = "/404.html"
+  status = 404
+  force = true
+
+[[redirects]]
+  from = "/.github/*"
+  to = "/404.html"
+  status = 404
+  force = true
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    Strict-Transport-Security = "max-age=63072000; includeSubDomains; preload"
+    X-Content-Type-Options = "nosniff"
+    X-Frame-Options = "DENY"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Permissions-Policy = "camera=(), microphone=(), geolocation=(), interest-cohort=()"
+    Cross-Origin-Opener-Policy = "same-origin"
+    Content-Security-Policy = "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'"
+    X-Powered-By = ""
+
+# Les ressources statiques changent de contenu sans changer de nom : on autorise
+# le cache une semaine, mais on impose la revalidation.
+[[headers]]
+  for = "/*.css"
+  [headers.values]
+    Cache-Control = "public, max-age=604800, must-revalidate"
+
+[[headers]]
+  for = "/*.js"
+  [headers.values]
+    Cache-Control = "public, max-age=604800, must-revalidate"
+
+[[headers]]
+  for = "/*.svg"
+  [headers.values]
+    Cache-Control = "public, max-age=604800, must-revalidate"

@@ -1,0 +1,29 @@
+{
+  "name": "wordpress-cest-nul",
+  "version": "1.1.1",
+  "private": true,
+  "description": "Site statique editorial : pourquoi WordPress n'est pas toujours le bon choix.",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": "22"
+  },
+  "scripts": {
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "serve": "npx --yes serve@14 -l 8080 .",
+    "build": "node scripts/build-dist.mjs"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@vitest/coverage-v8": "^5.0.1",
+    "eslint": "^10.10.0",
+    "globals": "^17.12.0",
+    "jsdom": "^30.0.1",
+    "smol-toml": "^1.8.0",
+    "vitest": "^5.0.1"
+  }
+}

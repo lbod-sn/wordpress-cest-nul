@@ -1,101 +1,113 @@
 name: Release Tag
 
+# Cree un tag Git SemVer (vX.Y.Z) a chaque merge sur main.
+# Le chiffre incremente depend du label pose sur la PR mergee :
+#
+#   breaking             -> majeur : vX+1.0.0
+#   feature              -> mineur : vX.Y+1.0
+#   fix / hotfix / chore -> patch  : vX.Y.Z+1
+#
+# Le prefixe "v" n'est pas cosmetique : c'est le format attendu par le SDU
+# (motif ^v\d+\.\d+\.\d+$) et par le declencheur de tag des autres workflows.
+# Les tags "1.1.0" et "1.1.1", crees avant la correction, restent en place et
+# servent de point de depart au calcul ci-dessous.
+
 on:
   push:
-    branches:
-      - main
+    branches: [main]
 
 permissions:
-  contents: write
-  pull-requests: read
+  contents: read
+
+concurrency:
+  group: release-tag
+  cancel-in-progress: false
 
 jobs:
   release:
     runs-on: ubuntu-latest
-
+    permissions:
+      contents: write       # creer et pousser le tag
+      pull-requests: read   # lire les labels de la PR mergee
+      actions: write        # declencher les workflows en aval
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      # Seul workflow qui conserve les identifiants du runner : il pousse le tag.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7 # zizmor: ignore[artipacked]
         with:
-          fetch-depth: 0
+          fetch-depth: 0  # l'historique complet des tags est necessaire
 
       - name: Configure Git
         run: |
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
 
-      - name: Install GitHub CLI
-        run: |
-          sudo apt-get update
-          sudo apt-get install gh -y
-
+      # Retrouve la PR mergee a partir du SHA pousse sur main, puis lit ses labels.
       - name: Get merged PR labels
         id: pr
         env:
           GH_TOKEN: ${{ github.token }}
+          SHA: ${{ github.sha }}
         run: |
-          PR_NUMBER=$(gh pr list \
-            --state merged \
-            --base main \
-            --search "${{ github.sha }}" \
-            --json number \
-            --jq '.[0].number')
+          set -euo pipefail
+          PR_NUMBER=$(gh pr list --state merged --base main --search "$SHA" --json number --jq '.[0].number')
 
           if [ -z "$PR_NUMBER" ]; then
-            echo "No merged PR found"
+            echo "::error::Aucune PR mergee trouvee pour $SHA"
             exit 1
           fi
 
-          echo "PR_NUMBER=$PR_NUMBER"
-
-          LABELS=$(gh pr view "$PR_NUMBER" \
-            --json labels \
-            --jq '.labels[].name')
-
-          echo "labels<<EOF" >> "$GITHUB_OUTPUT"
-          echo "$LABELS" >> "$GITHUB_OUTPUT"
-          echo "EOF" >> "$GITHUB_OUTPUT"
+          echo "PR : #$PR_NUMBER"
+          {
+            echo "labels<<EOF"
+            gh pr view "$PR_NUMBER" --json labels --jq '.labels[].name'
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Calculate next version
         id: version
         env:
           LABELS: ${{ steps.pr.outputs.labels }}
         run: |
-          LAST_TAG=$(git tag --sort=-v:refname | head -n 1)
+          set -euo pipefail
 
-          echo "Last tag: $LAST_TAG"
+          # On cherche d'abord un tag au format SDU. A defaut, on reprend la
+          # numerotation des anciens tags sans prefixe, pour ne pas repartir de zero.
+          LAST_TAG=$(git tag --list 'v[0-9]*.[0-9]*.[0-9]*' --sort=-v:refname | head -n 1)
+          if [ -z "$LAST_TAG" ]; then
+            LAST_TAG=$(git tag --list '[0-9]*.[0-9]*.[0-9]*' --sort=-v:refname | head -n 1)
+          fi
+          echo "Dernier tag : ${LAST_TAG:-aucun}"
 
           if [ -z "$LAST_TAG" ]; then
-            X=1
-            Y=0
-            Z=0
+            X=1; Y=0; Z=0
           else
-            IFS='.' read -r X Y Z <<< "$LAST_TAG"
+            IFS='.' read -r X Y Z <<< "${LAST_TAG#v}"
           fi
 
-          echo "Labels:"
-          echo "$LABELS"
-
-          if echo "$LABELS" | grep -q "^breaking$"; then
-            X=$((X + 1))
-            Y=0
-            Z=0
-
-          elif echo "$LABELS" | grep -q "^feature$"; then
-            Y=$((Y + 1))
-            Z=0
-
+          # Priorite : breaking > feature > patch
+          if grep -q '^breaking$' <<< "$LABELS"; then
+            X=$((X + 1)); Y=0; Z=0
+          elif grep -q '^feature$' <<< "$LABELS"; then
+            Y=$((Y + 1)); Z=0
           else
             Z=$((Z + 1))
           fi
 
-          NEXT_TAG="${X}.${Y}.${Z}"
-
+          NEXT_TAG="v${X}.${Y}.${Z}"
           echo "NEXT_TAG=$NEXT_TAG" >> "$GITHUB_ENV"
-
-          echo "Next tag: $NEXT_TAG"
+          echo "Prochain tag : $NEXT_TAG"
 
       - name: Create git tag
         run: |
           git tag "$NEXT_TAG"
           git push origin "$NEXT_TAG"
+
+      # Un tag pousse avec le GITHUB_TOKEN par defaut ne declenche pas les workflows
+      # ecoutant "on.push.tags" (garde-fou GitHub contre les boucles). On les
+      # declenche donc explicitement.
+      - name: Trigger downstream workflows
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh workflow run docker-build.yml --ref "$NEXT_TAG"
+          gh workflow run deploy-prod.yml --ref main -f tag="$NEXT_TAG"

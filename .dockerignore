@@ -1,0 +1,35 @@
+# Outillage git et CI : aucun usage a l'execution, et un .git servi publiquement
+# expose l'historique complet du depot.
+.git
+.gitignore
+.gitattributes
+.github
+
+# Secrets : jamais dans un contexte de build, meme si le Dockerfile ne les copie pas.
+.env
+.env.*
+
+# Caches d'outillage (npm, vitest, trivy) : lourds et sans valeur dans l'image.
+.cache
+node_modules
+coverage
+.vitest
+
+# Tests et configuration de tests : l'etape de build les execute depuis le contexte,
+# l'etape de runtime ne recoit que /dist.
+tests
+vitest.config.js
+eslint.config.js
+
+# Documentation et manifestes de plateforme.
+docs
+*.md
+netlify.toml
+
+# Manifestes de deploiement (aucun a ce jour, la regle previent la regression).
+k8s
+
+# Artefacts de travail
+*.old
+Dockerfile
+.dockerignore

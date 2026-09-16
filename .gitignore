@@ -1,1 +1,26 @@
+# Secrets locaux : jamais versionnes, jamais dans un contexte de build Docker.
+.env
+.env.*
+!.env.example
+
+# Dependances et artefacts de build
+node_modules/
+dist/
+coverage/
+*.tsbuildinfo
+
+# Caches d'outillage
+.cache/
+.vitest/
+.eslintcache
+
+# Plateformes
+.netlify/
+
+# Outils locaux
 .codex
+.DS_Store
+
+# Sauvegardes de travail
+*.old
+*.bak

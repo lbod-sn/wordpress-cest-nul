@@ -1,0 +1,77 @@
+name: Cleanup Dev
+
+# Nettoyage a la fermeture d'une PR (SDU : cleanup-dev).
+#
+# Une PR fermee laisse derriere elle deux choses qui restent accessibles : les
+# previsualisations Netlify de sa branche, et l'image de conteneur "pr-<n>"
+# poussee dans GHCR. Les deux sont supprimees ici.
+
+on:
+  pull_request:
+    types: [closed]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cleanup-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+jobs:
+  cleanup:
+    name: Suppression des ressources de la PR
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write   # suppression des images de la PR
+    steps:
+      # Les previsualisations Netlify restent servies apres la fermeture de la PR :
+      # une version non relue du site reste donc publiquement accessible.
+      - name: Suppression des previsualisations Netlify de la branche
+        env:
+          BRANCHE: ${{ github.event.pull_request.head.ref }}
+          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+          NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
+        run: |
+          set -uo pipefail
+          if [ -z "${NETLIFY_AUTH_TOKEN:-}" ]; then
+            echo "::notice::NETLIFY_AUTH_TOKEN absent : nettoyage des previsualisations ignore"
+            exit 0
+          fi
+
+          # On ne touche jamais au contexte "production" : seules les
+          # previsualisations et les deploiements de branche sont supprimes.
+          ids=$(npx --yes netlify-cli@27 api listSiteDeploys \
+                  --data "{\"site_id\":\"$NETLIFY_SITE_ID\"}" \
+                | jq -r --arg br "$BRANCHE" \
+                    '.[] | select(.branch == $br and .context != "production") | .id')
+
+          if [ -z "$ids" ]; then
+            echo "::notice::Aucune previsualisation a supprimer pour $BRANCHE"
+            exit 0
+          fi
+
+          for id in $ids; do
+            npx --yes netlify-cli@27 api deleteDeploy --data "{\"deploy_id\":\"$id\"}" \
+              && echo "Previsualisation $id supprimee"
+          done
+
+      - name: Suppression des images de conteneur de la PR
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR: ${{ github.event.pull_request.number }}
+          PAQUET: ${{ github.event.repository.name }}
+        run: |
+          set -uo pipefail
+          versions=$(gh api "/user/packages/container/$PAQUET/versions" --paginate \
+            --jq ".[] | select(.metadata.container.tags[]? | startswith(\"pr-$PR-\")) | .id" 2>/dev/null || true)
+
+          if [ -z "$versions" ]; then
+            echo "::notice::Aucune image pr-$PR- a supprimer"
+            exit 0
+          fi
+
+          for id in $versions; do
+            gh api --method DELETE "/user/packages/container/$PAQUET/versions/$id" \
+              && echo "Image $id supprimee"
+          done
