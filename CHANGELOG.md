@@ -17,11 +17,16 @@ Extern. Aucune modification du contenu editorial du site.
 - Deploiement de production `deploy-prod.yml` : deploiement Netlify declenche par
   un tag de version, approbation manuelle via l'environnement GitHub `production`,
   smoke-test d'exposition, et republication du deploiement precedent en cas d'echec.
-- `cleanup-dev.yml` : suppression des previsualisations Netlify de la branche et
-  de l'image de conteneur a la fermeture d'une PR.
-- `auto-label.yml` : label de release deduit du prefixe de branche.
-- Outillage qualite : ESLint, Vitest et 31 tests (comportement du script de
-  navigation, integrite des ressources referencees, en-tetes servis, image de secours).
+- `cleanup-dev.yml` : suppression des previsualisations Netlify de la branche a
+  la fermeture d'une PR, sans jamais toucher au contexte `production`.
+- `auto-label.yml` : label de release deduit du prefixe de branche, et pour une
+  PR d'integration `dev` vers `main` du **plus fort des labels portes par les PR
+  embarquees** (un lot contenant une PR `breaking` est un lot `breaking`). A
+  defaut de toute PR labellisee, repli sur `chore` signale en avertissement. Un
+  label deja pose n'est jamais repose.
+- Outillage qualite : ESLint, Vitest et 60 tests (comportement du script de
+  navigation, integrite des ressources referencees, alignement des en-tetes entre
+  `netlify.toml` et `docker/nginx.conf`, image de secours, script d'etiquetage).
 - `netlify.toml` : en-tetes de securite (HSTS, CSP, X-Frame-Options, Referrer-Policy,
   Permissions-Policy) et blocage des chemins `.git`, `.env`, `.github`.
 - `docker/nginx.conf` : memes en-tetes et `server_tokens off` pour l'image de secours,
@@ -29,6 +34,10 @@ Extern. Aucune modification du contenu editorial du site.
 - `scripts/build-dist.mjs` : assemblage du site publiable, en echec si une page
   reference une ressource absente du depot.
 - `scripts/ci-smoke-test.sh` : smoke-test d'exposition d'un deploiement.
+- `tests/auto-label.test.js` : le script d'etiquetage est extrait du YAML du
+  workflow et execute contre des doublures d'API, plutot que teste sur une copie
+  qui divergerait. Onze cas, dont la coherence entre les labels que
+  `auto-label.yml` peut poser et ceux que `validate-pr.yml` accepte.
 - `404.html`, `SECURITY.md`, `LICENSE` (MIT), `README.md`, `.dockerignore`,
   `.trivyignore`, `.github/CODEOWNERS`, `.github/dependabot.yml`.
 
