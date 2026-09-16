@@ -73,14 +73,20 @@ feature/* fix/* hotfix/*  --PR-->  dev  --PR-->  main  --tag vX.Y.Z-->  producti
 
 1. Brancher depuis `dev` en `feature/`, `fix/` ou `hotfix/`.
 2. `auto-label.yml` pose le label de release depuis le prefixe de branche ;
-   `chore` et `breaking` se posent a la main.
+   `chore` et `breaking` se posent a la main, ils demandent un jugement.
 3. `validate-pr.yml` refuse une PR mal nommee ou sans label ; `ci.yml` et
    `docker-build.yml` doivent passer.
 4. Au merge sur `main`, `release-tag.yml` cree le tag `vX.Y.Z` selon le label
    (`breaking` majeur, `feature` mineur, le reste patch) et declenche le
    deploiement de production.
 5. A la fermeture de la PR, `cleanup-dev.yml` supprime les previsualisations
-   Netlify de la branche et l'image de conteneur associee.
+   Netlify de la branche : sans cela, une version non relue du site reste
+   servie publiquement.
+
+La PR d'integration `dev` vers `main` n'a pas de nom de branche parlant.
+`auto-label.yml` lui pose donc le **label le plus fort des PR qu'elle embarque** :
+un lot qui contient une PR `breaking` est un lot `breaking`. A defaut de toute PR
+labellisee, il retombe sur `chore` en le signalant dans le journal du workflow.
 
 ## Workflows
 
@@ -90,10 +96,10 @@ feature/* fix/* hotfix/*  --PR-->  dev  --PR-->  main  --tag vX.Y.Z-->  producti
 | `docker-build.yml` | PR, push `dev`, tag `v*` | Build, scan CVE Trivy bloquant, push GHCR |
 | `codeql.yml` | PR, push `main`, hebdomadaire | Analyse statique de securite |
 | `validate-pr.yml` | PR | Nommage de branche et label de release |
-| `auto-label.yml` | Ouverture de PR | Label deduit du prefixe de branche |
+| `auto-label.yml` | PR ouverte, rouverte, mise a jour | Label deduit du prefixe de branche, ou des PR embarquees pour `dev` vers `main` |
 | `release-tag.yml` | Push `main` | Tag SemVer `vX.Y.Z` et declenchement aval |
 | `deploy-prod.yml` | Tag `v*`, manuel | Deploiement Netlify, smoke-test, rollback |
-| `cleanup-dev.yml` | Fermeture de PR | Suppression previsualisation et image de PR |
+| `cleanup-dev.yml` | Fermeture de PR | Suppression des previsualisations Netlify de la branche |
 
 ## Securite
 

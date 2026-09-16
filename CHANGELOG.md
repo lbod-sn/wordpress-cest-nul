@@ -3,6 +3,32 @@
 Format inspire de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/).
 Versionnement [SemVer](https://semver.org/lang/fr/) : les tags portent le prefixe `v`.
 
+## [Non publie]
+
+### Corrige
+
+- `auto-label.yml` ne posait aucun label sur une PR d'integration `dev` vers
+  `main` : le nom de branche `dev` ne correspond a aucun prefixe. La PR de
+  release etait donc systematiquement refusee par `validate-pr.yml`, et il
+  fallait poser le label a la main a chaque version. Le workflow deduit
+  desormais le label du **plus fort des labels portes par les PR embarquees**,
+  retombe sur `chore` en le signalant si aucune n'est labellisee, et ne repose
+  jamais un label deja present. Declencheurs etendus a `reopened` et
+  `synchronize`.
+- `cleanup-dev.yml` echouait a chaque fermeture de PR. L'etape de suppression
+  des images `pr-<n>` nettoyait quelque chose qui n'existe jamais, puisque
+  `docker-build.yml` ne pousse pas d'image depuis une PR. Elle echouait de plus
+  en le faisant : `GITHUB_TOKEN` n'a pas acces a `/user/packages`, et le corps
+  de la reponse d'erreur finissait dans l'URL du `DELETE`. Etape retiree, et
+  `packages: write` avec elle.
+
+### Ajoute
+
+- `tests/auto-label.test.js` : le script d'etiquetage est extrait du YAML du
+  workflow et execute contre des doublures d'API. Onze cas, dont la coherence
+  entre les labels que `auto-label.yml` peut poser et ceux que `validate-pr.yml`
+  accepte. 45 -> 60 tests.
+
 ## [v1.2.0] - 2026-09-15
 
 Mise en conformite avec le Systeme de Deploiement Unifie (SDU v1.1) du Groupe

@@ -2,9 +2,19 @@ name: Cleanup Dev
 
 # Nettoyage a la fermeture d'une PR (SDU : cleanup-dev).
 #
-# Une PR fermee laisse derriere elle deux choses qui restent accessibles : les
-# previsualisations Netlify de sa branche, et l'image de conteneur "pr-<n>"
-# poussee dans GHCR. Les deux sont supprimees ici.
+# Une PR fermee laisse derriere elle ses previsualisations Netlify : une version
+# non relue du site reste publiquement servie tant qu'on ne les supprime pas.
+#
+# Il n'y a rien a nettoyer cote registre : docker-build.yml ne pousse jamais
+# d'image depuis une PR (etape "Push registre", condition
+# github.event_name != 'pull_request'). L'etape de suppression des images "pr-<n>"
+# qui figurait ici nettoyait donc quelque chose qui n'existe jamais, et echouait
+# en le faisant : GITHUB_TOKEN n'a pas acces a /user/packages (404), la reponse
+# d'erreur atterrissait dans la liste d'identifiants, et le DELETE partait sur une
+# URL construite a partir du texte de l'erreur.
+#
+# La retention des images "dev-<sha>", elle, reste un sujet ouvert : elles
+# s'accumulent sans limite. C'est un nettoyage periodique, pas un nettoyage de PR.
 
 on:
   pull_request:
@@ -23,7 +33,6 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      packages: write   # suppression des images de la PR
     steps:
       # Les previsualisations Netlify restent servies apres la fermeture de la PR :
       # une version non relue du site reste donc publiquement accessible.
@@ -54,24 +63,4 @@ jobs:
           for id in $ids; do
             npx --yes netlify-cli@27 api deleteDeploy --data "{\"deploy_id\":\"$id\"}" \
               && echo "Previsualisation $id supprimee"
-          done
-
-      - name: Suppression des images de conteneur de la PR
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PR: ${{ github.event.pull_request.number }}
-          PAQUET: ${{ github.event.repository.name }}
-        run: |
-          set -uo pipefail
-          versions=$(gh api "/user/packages/container/$PAQUET/versions" --paginate \
-            --jq ".[] | select(.metadata.container.tags[]? | startswith(\"pr-$PR-\")) | .id" 2>/dev/null || true)
-
-          if [ -z "$versions" ]; then
-            echo "::notice::Aucune image pr-$PR- a supprimer"
-            exit 0
-          fi
-
-          for id in $versions; do
-            gh api --method DELETE "/user/packages/container/$PAQUET/versions/$id" \
-              && echo "Image $id supprimee"
           done
