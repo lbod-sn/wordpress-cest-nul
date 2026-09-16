@@ -72,10 +72,11 @@ feature/* fix/* hotfix/*  --PR-->  dev  --PR-->  main  --tag vX.Y.Z-->  producti
 ```
 
 1. Brancher depuis `dev` en `feature/`, `fix/` ou `hotfix/`.
-2. `auto-label.yml` pose le label de release depuis le prefixe de branche ;
+2. `validate-pr.yml` pose le label de release depuis le prefixe de branche,
+   puis refuse la PR si elle est mal nommee ou sans label. Les deux etapes sont
+   dans le meme job, dans cet ordre : separees, elles se couraient apres.
    `chore` et `breaking` se posent a la main, ils demandent un jugement.
-3. `validate-pr.yml` refuse une PR mal nommee ou sans label ; `ci.yml` et
-   `docker-build.yml` doivent passer.
+3. `ci.yml` et `docker-build.yml` doivent passer.
 4. Au merge sur `main`, `release-tag.yml` cree le tag `vX.Y.Z` selon le label
    (`breaking` majeur, `feature` mineur, le reste patch) et declenche le
    deploiement de production.
@@ -84,7 +85,7 @@ feature/* fix/* hotfix/*  --PR-->  dev  --PR-->  main  --tag vX.Y.Z-->  producti
    servie publiquement.
 
 La PR d'integration `dev` vers `main` n'a pas de nom de branche parlant.
-`auto-label.yml` lui pose donc le **label le plus fort des PR qu'elle embarque** :
+`validate-pr.yml` lui pose donc le **label le plus fort des PR qu'elle embarque** :
 un lot qui contient une PR `breaking` est un lot `breaking`. A defaut de toute PR
 labellisee, il retombe sur `chore` en le signalant dans le journal du workflow.
 
@@ -95,8 +96,7 @@ labellisee, il retombe sur `chore` en le signalant dans le journal du workflow.
 | `ci.yml` | PR, push `dev`/`main` | Lint, tests, assemblage verifie |
 | `docker-build.yml` | PR, push `dev`, tag `v*` | Build, scan CVE Trivy bloquant, push GHCR |
 | `codeql.yml` | PR, push `main`, hebdomadaire | Analyse statique de securite |
-| `validate-pr.yml` | PR | Nommage de branche et label de release |
-| `auto-label.yml` | PR ouverte, rouverte, mise a jour | Label deduit du prefixe de branche, ou des PR embarquees pour `dev` vers `main` |
+| `validate-pr.yml` | PR | Pose le label de release, puis controle nommage et label |
 | `release-tag.yml` | Push `main` | Tag SemVer `vX.Y.Z` et declenchement aval |
 | `deploy-prod.yml` | Tag `v*`, manuel | Deploiement Netlify, smoke-test, rollback |
 | `cleanup-dev.yml` | Fermeture de PR | Suppression des previsualisations Netlify de la branche |

@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { join } from "node:path";
 import { parse as parseYaml } from "yaml";
@@ -7,8 +7,9 @@ import { describe, expect, it } from "vitest";
 // Le script vit dans le YAML du workflow : c'est la seule copie, et c'est elle
 // qui est testee. Un test ecrit sur une copie ne protege de rien.
 const root = fileURLToPath(new URL("..", import.meta.url));
-const workflow = parseYaml(readFileSync(join(root, ".github/workflows/auto-label.yml"), "utf8"));
-const source = workflow.jobs.label.steps[0].with.script;
+const workflow = parseYaml(readFileSync(join(root, ".github/workflows/validate-pr.yml"), "utf8"));
+const etapes = workflow.jobs.validate.steps;
+const source = etapes.find((e) => e.name === "Apply release label").with.script;
 
 const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor;
 const script = new AsyncFunction("github", "context", "core", source);
@@ -124,11 +125,45 @@ describe("label deja pose", () => {
   });
 });
 
-describe("coherence avec validate-pr.yml", () => {
-  const validate = parseYaml(
-    readFileSync(join(root, ".github/workflows/validate-pr.yml"), "utf8"),
+// La course qui a fait echouer la PR d'integration #9 : l'etiquetage et la
+// validation tournaient dans deux workflows paralleles, et la validation lisait
+// les labels avant que l'etiquetage n'ait pose le sien. Les remettre dans deux
+// jobs, ou dans le mauvais ordre, reproduirait le defaut a l'identique.
+describe("l'etiquetage precede la validation dans le meme job", () => {
+  const iLabel = etapes.findIndex((e) => e.name === "Apply release label");
+  const iValidation = etapes.findIndex((e) =>
+    e.uses?.startsWith("mheap/github-action-required-labels"),
   );
-  const exiges = validate.jobs.validate.steps
+
+  it("les deux etapes sont dans le job validate", () => {
+    expect(iLabel).toBeGreaterThanOrEqual(0);
+    expect(iValidation).toBeGreaterThanOrEqual(0);
+  });
+
+  it("l'etiquetage passe en premier", () => {
+    expect(iLabel).toBeLessThan(iValidation);
+  });
+
+  it("aucun workflow separe ne repose le label en parallele", () => {
+    const orphelin = join(root, ".github/workflows/auto-label.yml");
+
+    expect(existsSync(orphelin)).toBe(false);
+  });
+
+  // Sur "unlabeled", un humain vient de retirer un label : le reposer lui
+  // reprendrait sa decision dans la seconde.
+  it("n'etiquette que sur opened, reopened et synchronize", () => {
+    const condition = etapes[iLabel].if;
+
+    expect(condition).toContain("opened");
+    expect(condition).toContain("reopened");
+    expect(condition).toContain("synchronize");
+    expect(condition).not.toContain("unlabeled");
+  });
+});
+
+describe("coherence entre etiquetage et validation", () => {
+  const exiges = etapes
     .find((etape) => etape.uses?.startsWith("mheap/github-action-required-labels"))
     .with.labels.trim()
     .split("\n")
@@ -144,7 +179,7 @@ describe("coherence avec validate-pr.yml", () => {
   );
 
   it("validate-pr.yml n'exige exactement qu'un seul label", () => {
-    const etape = validate.jobs.validate.steps.find((e) =>
+    const etape = etapes.find((e) =>
       e.uses?.startsWith("mheap/github-action-required-labels"),
     );
 

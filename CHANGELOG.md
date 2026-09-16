@@ -19,11 +19,12 @@ Extern. Aucune modification du contenu editorial du site.
   smoke-test d'exposition, et republication du deploiement precedent en cas d'echec.
 - `cleanup-dev.yml` : suppression des previsualisations Netlify de la branche a
   la fermeture d'une PR, sans jamais toucher au contexte `production`.
-- `auto-label.yml` : label de release deduit du prefixe de branche, et pour une
-  PR d'integration `dev` vers `main` du **plus fort des labels portes par les PR
-  embarquees** (un lot contenant une PR `breaking` est un lot `breaking`). A
-  defaut de toute PR labellisee, repli sur `chore` signale en avertissement. Un
-  label deja pose n'est jamais repose.
+- `validate-pr.yml` pose le label de release avant de le valider, dans le meme
+  job : depuis le prefixe de branche, et pour une PR d'integration `dev` vers
+  `main` depuis le **plus fort des labels portes par les PR embarquees** (un lot
+  contenant une PR `breaking` est un lot `breaking`). A defaut de toute PR
+  labellisee, repli sur `chore` signale en avertissement. Un label deja pose
+  n'est jamais repose, et rien n'est pose sur `unlabeled`.
 - Outillage qualite : ESLint, Vitest et 60 tests (comportement du script de
   navigation, integrite des ressources referencees, alignement des en-tetes entre
   `netlify.toml` et `docker/nginx.conf`, image de secours, script d'etiquetage).
@@ -34,10 +35,11 @@ Extern. Aucune modification du contenu editorial du site.
 - `scripts/build-dist.mjs` : assemblage du site publiable, en echec si une page
   reference une ressource absente du depot.
 - `scripts/ci-smoke-test.sh` : smoke-test d'exposition d'un deploiement.
-- `tests/auto-label.test.js` : le script d'etiquetage est extrait du YAML du
+- `tests/pr-labels.test.js` : le script d'etiquetage est extrait du YAML du
   workflow et execute contre des doublures d'API, plutot que teste sur une copie
   qui divergerait. Onze cas, dont la coherence entre les labels que
-  `auto-label.yml` peut poser et ceux que `validate-pr.yml` accepte.
+  l'etiquetage peut poser et ceux que la validation accepte, et l'ordre des deux
+  etapes dans le job.
 - `404.html`, `SECURITY.md`, `LICENSE` (MIT), `README.md`, `.dockerignore`,
   `.trivyignore`, `.github/CODEOWNERS`, `.github/dependabot.yml`.
 
