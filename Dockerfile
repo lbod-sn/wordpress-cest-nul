@@ -11,7 +11,7 @@
 # ---------- build ----------
 # Image figee par empreinte : un tag alpine bouge, une empreinte non. Dependabot
 # ouvre une PR quand l'empreinte du tag change, ce qui rend la mise a jour tracee.
-FROM node:26-alpine@sha256:0b36e8c136b94cd4fcf02188228e76c31ad5872eef3fec8cbd2eee500cfd9e80 AS build
+FROM node:26-alpine@sha256:143494b1da2945f061539253adc65e4f1569ddf07da2d384c022c791a9d90a4a AS build
 
 WORKDIR /src
 
